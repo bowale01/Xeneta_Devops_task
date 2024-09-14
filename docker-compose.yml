@@ -1,1 +1,33 @@
+version: '3.8'
 
+services:
+  db:
+    image: postgres:13.5
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: rates
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./db/rates.sql:/docker-entrypoint-initdb.d/rates.sql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: ./rates
+    command: gunicorn -b :3000 wsgi:app
+    environment:
+      - DB_HOST=db
+      - DB_USER=postgres
+      - DB_PASS=password
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./rates:/usr/src/app
