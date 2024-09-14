@@ -110,4 +110,80 @@ Database Performance: If the database becomes a bottleneck due to high write act
 
 
 
+Theoretical Case: Data Ingestion Pipeline
+High-Level Considerations
+We need to design a system to ingest and process large batches of data (e.g., tens of thousands of records) and serve requests for these records. High availability, scalability, and batch atomicity (all-or-nothing processing) are critical requirements.
+
+Assumptions
+Data batches can arrive sporadically, so the system must handle bursts of activity.
+Batch updates must be processed atomically—if one record fails, none should be inserted.
+The system must be highly available, with minimal downtime.
+Both read and write requests should scale smoothly with the load.
+Architecture
+1. Batch Ingestion with Queues
+Ingestion Layer: Ingest data batches via a REST API or file upload.
+Queueing System: AWS SQS or Apache Kafka can be used to queue incoming batch updates. Each batch will be processed in the order it arrives. Using a message queue helps to decouple the ingestion process from the actual processing logic.
+2. Processing Layer
+Batch Processor: A Lambda function or containerized service (via Kubernetes) processes the batches. The service reads messages from the queue, validates the data, and writes to the database. If the batch is processed successfully, the message is removed from the queue. If an error occurs, the batch can be retried or sent to a "dead-letter queue" for manual review.
+3. Atomic Database Transactions
+PostgreSQL: Use PostgreSQL with support for transactional updates. Each batch is processed in a single transaction—either the entire batch is inserted successfully, or none of it is.
+4. Serving Data
+A separate API service (as in the practical case) can be used to serve data requests. This service will query the database, with indexes optimized for read-heavy operations.
+Read Replicas: To scale read requests, read replicas of the primary database can be used.
+
+
+
+       +------------+
+                |   Client    |
+                +-----+------+
+                      |
+                      v
+               +--------------+
+               | Ingestion API |
+               +--------------+
+                      |
+                      v
+                +-------------+                +--------------+
+                | Message Queue| <------------ | Dead-Letter Q |
+                +------+------+                +------+-------+
+                       |                            |
+                       v                            v
+             +------------------+         +-------------------+
+             | Batch Processor   |         | Manual Processing |
+             +---------+---------+         +-------------------+
+                       |
+                       v
+           +---------------------------+
+           | PostgreSQL (with replicas) |
+           +---------------------------+
+
+
+Advantages and Limitations
+Advantages:
+The queue system decouples ingestion from processing, allowing for greater flexibility and fault tolerance.
+Batch processing is atomic, ensuring data integrity.
+The system is highly scalable, using read replicas and a message queue to handle increasing loads.
+Limitations:
+The processing system may experience delays if the message queue grows too large, leading to higher latencies during periods of heavy load.
+Requires careful configuration of the queue to ensure proper back-off and retry strategies.
+Monitoring and Bottleneck Detection
+Metrics to Monitor:
+Queue length (to detect growing backlogs).
+Database query performance (e.g., slow queries).
+CPU, memory, and I/O usage on the batch processing instances.
+Addressing Bottlenecks:
+If queue lengths grow too long, increase the number of consumers (batch processors).
+Optimize database queries by adding indexes and scaling the database horizontally (read replicas).
+Addressing Scaling and Processing Time
+If batch updates become too large:
+
+Horizontal Scaling: Increase the number of processing instances and parallelize the workload. Partition large batches into smaller chunks that can be processed concurrently.
+Database Optimizations: Use database partitioning or sharding to spread the load across multiple nodes.
+If code updates need to be pushed frequently:
+
+Zero-Downtime Deployments: Implement rolling updates or blue-green deployments to ensure that updates are pushed without interrupting ongoing data processing.
+
+
+
+
 
