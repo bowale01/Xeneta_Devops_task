@@ -51,7 +51,7 @@ The entire batch must be processed as a single unit: either all items are insert
 Both ingestion and retrieval traffic can be sporadic but sometimes very high.
 
 
-## Proposed Solution
+ Proposed Solution
 
 ## Architecture Overview
 
@@ -64,3 +64,50 @@ AWS SQS (Simple Queue Service): Acts as a buffer between the API and the process
 AWS Lambda: Processes batches from the SQS queue. Lambda functions can scale horizontally, handling large volumes of incoming data without provisioning or managing servers.
 
 PostgreSQL (RDS): Stores the processed data. RDS ensures transactional consistency, allowing batch insertion within transactions.
+
+
++-------------------+    +-----------------+    +------------------+
+| Incoming Batch    | -> |  Data Ingestion  | -> |  Queue (SQS)     | 
+| HTTP Requests     |    |  Microservice    |    |                  |
++-------------------+    +-----------------+    +------------------+
+                                                      |
+                                                      v
+                                            +--------------------+
+                                            |  Processing Worker  | 
+                                            |  (AWS Lambda)       | 
+                                            +--------------------+
+                                                      |
+                                                      v
+                                            +--------------------+
+                                            |  Database (RDS)     | 
+                                            +--------------------+
+
+
+
+Key Components
+
+AWS SQS:
+
+Decoupling: Acts as a buffer, allowing the system to handle sudden surges in incoming requests.
+Scalability: Can handle large volumes of messages, ensuring that the backend is not overwhelmed by traffic spikes.
+AWS Lambda:
+
+Scalability: Automatically scales based on the number of messages in the SQS queue. Lambda can process multiple batches concurrently.
+Atomicity: Batches are processed within a single Lambda invocation, and database transactions are used to ensure that either all data is inserted or none of it is.
+PostgreSQL (RDS):
+
+Transactional Integrity: Supports transactions, ensuring that all batch items are processed atomically.
+Horizontal Scaling: If necessary, we can scale the RDS instance vertically or use read replicas to distribute query loads.
+Monitoring and Bottleneck Identification
+Monitoring Tools:
+
+CloudWatch: Monitors the SQS queue length, Lambda execution duration, and RDS performance (CPU, memory, IOPS).
+RDS Metrics: Monitor database performance using built-in RDS metrics.
+Potential Bottlenecks:
+
+Queue Backlogs: If the SQS queue grows consistently, it indicates that Lambda isn't processing batches quickly enough. Increase Lambda concurrency to process more batches simultaneously.
+Database Performance: If the database becomes a bottleneck due to high write activity, consider upgrading the RDS instance or introducing sharding to spread the load.
+
+
+
+
