@@ -15,7 +15,7 @@ Python + Gunicorn: The API service runs on Python and uses Gunicorn as the WSGI 
 
 ## Steps to Run the Environment
 
-## 1. Clone the repository:
+ 1. Clone the repository:
    ```bash
    git clone https://github.com/your-repo/deployable-env.git
    cd deployable-env
