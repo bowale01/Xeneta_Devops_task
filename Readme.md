@@ -33,3 +33,6 @@ Python + Gunicorn: The API service runs on Python and uses Gunicorn as the WSGI 
 4. To verify the database is running:
 
      docker exec -it <db_container_id> psql -U postgres -c "SELECT 'alive'"
+
+
+This will set up the database and the API service, which can be accessed at http://localhost:3000.
